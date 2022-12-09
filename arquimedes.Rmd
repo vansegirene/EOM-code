@@ -1,0 +1,303 @@
+---
+title: "TFG"
+output: html_document
+date: '2022-12-07'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Paquetes usados de R
+Lista de paquetes usados y como citarlos
+```{r}
+library(readxl)
+citation("readxl")
+library(dplyr)
+citation("dplyr")
+library(tableone)
+citation("tableone")
+library(knitr)
+citation("knitr")
+library(ggplot2)
+citation("ggplot2")
+library(corrplot)
+citation("corrplot")
+library(ggpubr)
+citation("ggpubr")
+library(qgraph)
+citation("qgraph")
+library(mice)
+citation("mice")
+library(questionr)
+citation("questionr")
+library(sjPlot)
+citation("sjPlot")
+library(fmsb)
+citation("fmsb")
+```
+## Estadistica: Pacientes HGNA vs voluntarios sanos
+# Base de datos EOM
+```{r}
+library(readxl)
+EOM_I_CONTROLSB_1_ <- read_excel("C:/Users/irene/Downloads/EOM I CONTROLS
+B (1).xlsx")
+w<-EOM_I_CONTROLSB_1_
+```
+# Variables a ser incluidas:
+Como en la base de datos había variables que no queríamos incluir, hicimos una lista de las que queríamos que formaran parte de nuestro estudio. Con esta lista no disponíamos del contenido de las columnas, por lo que tuvimos que cre un marco de datos con las variables elegidas.
+```{r}
+variables<c("Sex","Age","BMI","Heart_rate","TAS","TAD","Pcadera","Pcintur
+a","T2DM","HT","DLP","Glucose","Insulin2","HOMAIR","TG","CHOL", "LDL","HD
+L", "ALT","AST","GGT","Biguanides","Sulfonylureas","Statins", "Diuretics"
+,"ACE_ARBS", "Control_vs_EOM")
+dfeo<-w[,variables]
+```
+# Tipo de variables
+Habia dos formas de explorar el tipo de datos que teniamos 
+```{r}
+str(dfeo)
+lapply(dfeo,class)
+```
+# De numeric a factor
+Muchas de las variables que teníamos eran variables numéricas de tipo 0 y 1. Para diferencia entre las que eran numéricas, como la altura o el peso, las pasamos a factor. Además, las variables asumen un cierto orden, es decir, una categoría o un nivel. Por ejemplo en fumador: un 0 será un NO, que tiene una mejor connotación positiva que 1->SÍ.
+```{r}
+Noves_factoreo<- c("T2DM","HT","DLP","Biguanides","Sulfonylureas", "Diure
+tics","ACE_ARBS","Statins")
+dfeo[, Noves_factoreo] <- lapply(dfeo[, Noves_factoreo], as.factor)
+```
+# Test de Shapiro
+Esta prueba nos permitió determinar qué variables tenían una distribución normal y cuáles no.
+on y cuáles no. Sólo pudimos aplicar la prueba a las variables numéricas ya que se suponía que las variables categóricas no eran normales.
+```{r}
+numeriques<c("Age","BMI","Heart_rate","TAS","TAD","Pcadera","Pcintura","G
+lucose","Insulin2","HOMAIR","TG","CHOL", "LDL","HDL", "ALT","AST","GGT")
+```
+## Correlaciones
+```{r}
+library(readxl)
+library(ggplot2)
+library(corrplot)
+require(Hmisc)
+Proba.cor <- read_excel("C:/Users/irene/Desktop/TFG/Coses TFG/Base_defini
+tiva.xlsx")
+##Proba.cor<- cor(Proba.cor, method ="pearson")
+vars_cor<-c("Adiponectin","Leptin","Irisin","Gal3", "FGF19","FGF21","BMI"
+,"HT","DLP","OSA","CPAP","T2DM")
+Proba.cor<-Proba.cor[,vars_cor]
+Proba.cor<-rcorr(data.matrix(Proba.cor), type="pearson")
+round(Proba.cor$r, digits=2)
+corrplot(Proba.cor$r)
+col<- colorRampPalette(c("#BB4444","#EE9988", "#FFFFFF","#77AADD", "#4477
+AA"))
+corrplot(Proba.cor$r, method="shade", shade.col =NA, tl.col= "black", tl.srt =45, col= col(200), addCoef.col ="black", addcolorlabel= "no")
+corrplot(Proba.cor$r, method="square", tl.col= "black", tl.srt= 45, col=col(200), addCoef.col= "black", type ="upper", diag =F, addshade ="all")
+```
+Leptina e IMC : los gráficos mostraron que había algunas variables correlacionadas. Nosotros realizó una correlación de Pearson y vio que la leptina y el IMC estaban significativamente significativamente.
+```{r}
+Proba.cor.BMI <- read_excel("C:/Users/irene/Desktop/TFG/Coses TFG/Base_de
+finitiva.xlsx")
+Leptines<-subset(Proba.cor.BMI, Proba.cor.BMI$Leptin>0)
+Leptines2<-subset(Leptines, Leptines$BMI>30)
+library(ggplot2)
+library(ggpubr)
+BMI <- ggscatter(Leptines2, x = "BMI",y = "Leptin",
+ add = "reg.line", # Add regressin line
+ add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+ conf.int = TRUE)
+BMI+ stat_cor(method = "pearson")
+```
+## Table one de pacientes EHGNA
+```{r}
+library(readxl)
+Base_definitiva <- read_excel("C:/Users/irene/Desktop/TFG/Coses TFG/Ba
+se_definitiva.xlsx")
+x<-Base_definitiva
+```
+# Variables a incluir
+Hacemos una lista de las variables que queremos incluir en el estudio. Esta lista no tiene el contenido de las columnas de cada variable, f Por ello, tendremos que crear un marco de datos con las variables.
+```{r}
+variables<c("Sex","Age","BMI","Heart_rate","TAS","TAD","Pcadera","Pcin
+tura","T2DM","HT","DLP", "OSA", "CPAP","Hipotiroidism","Hipertiroidism
+","Glucose","Insulin2","HOMAIR","TG","CHOL", "LDL","HDL", "ALT","AST",
+"GGT", "Steatosis_score","Inflammation","Ballooning", "Fibrosis", "NAS
+","ACE_ARBS", "Biguanides","Sulfonylureas","Statins", "Diuretics","Fi
+brates","Horm_tiroid","NAS_qual")
+df<-x(,variables)
+```
+#Tipo de variables
+```{r}
+str(df)
+lapply(x,class)
+```
+# De numerica a factor
+Muchas de las variables que tenemos son variables numéricas de tipo 0 y 1.
+Para hacer una diferencia entre las que son numéricas como s altura o peso, pasamos estas otras a factor. Además, las variables de tipo factor t
+as variables de tipo factor asumen un cierto orden, es decir, una categoría o un nivel. Por ejemplo, en fumador: un 0 será un NO, que tiene una connotación más positiva que 1->SÍ.
+```{r}
+Noves_factor<- c("T2DM","HT","DLP", "OSA","CPAP","Hipotiroidism","Hipe
+rtiroidism","Steatosis_score","Inflammation","Ballooning", "Fibrosis",
+"NAS", "Biguanides","Sulfonylureas","Statins", "Diuretics","ACE_ARBS"
+,"Fibrates","Horm_tiroid", "NAS_qual")
+df(, Noves_factor) <- lapply(df(, Noves_factor), as.factor)
+```
+# Test de Shapiro
+Esta prueba nos permite determinar qué variables tienen una distribución normal y cuáles no.
+y cuáles no. Sólo podemos aplicar la prueba a las variables, ya que se supone que las variables categóricas no son normales.
+```{r}
+numeriques<c("Age","BMI","Heart_rate","TAS","TAD","Pcadera","Pcintura"
+,"Glucose","Insulin2","HOMAIR","TG","CHOL", "LDL","HDL", "ALT","AST","
+GGT")
+shapiro<-lapply(df(, numeriques), shapiro.test)
+shapiro
+nonormales<-c("Age","BMI","Heart_rate","TAS","TAD","Pcadera","Pcintura
+","Glucose","Insulin2","HOMAIR","TG","CHOL", "LDL","HDL", "ALT","AST",
+"GGT")
+```
+# Estadistica Univariada
+Aplicamos la biblioteca tableone que aplica la prueba adecuada para cada variable en función de si tiene una distribución normal o no. Y nos indica cuales son los p-valores, pudiendo así obtener qué variables son significativas. Es importante estratificar utilizando la variable NAS_qual, que es la que nos interesa.
+```{r}
+in.library(knitr)
+library(tableone)
+kableone <- function(x, ...) {
+ capture.output(x_prima <- print(x,...))
+ kable(x_prima, ...)
+}
+tab3 <- CreateTableOne(strata = "NAS_qual", data = df)
+kableone(tab3, nonnormal = nonormales, formatOptions = list(big.mark =
+","))
+```
+## Correlation network
+# Librerias
+```{r}
+library(qgraph)
+library(graphicalVAR)
+library(ggplot2)
+library(bootnet)
+library(plyr)
+library(dplyr)
+library(reshape2)
+library(knitr)
+library(magrittr)
+library(lavaan)
+library(lme4)
+library(glmnet)
+library(huge)
+library(BayesFactor)
+library(ltm)
+library(depmixS4)
+library(corpcor)
+library(tidyverse)
+
+dput(names(EOM_120522))
+
+selected_vars <- c("Age", "BMI", "Heart_rate", "TAS", "TAD", 
+"Pcadera", "Pcintura", "Steatosis_grade", "SAT_area", "VAT_area", 
+"Glucose", "Insulin", "HOMAIR", "TG", "CHOL", "HDL", "LDL", "VLDL", 
+"I_ATE", "ALT", "AST", "GGT", "LDH", "FA", "NEFAS", "Hematocrit", 
+"Hemoglobina", "Hematies", "VCM", "CHCM", "PLAQUETES", "VPM", 
+"Leucocits", "Limfocits", "Monocits", "Neutrofils", "Eosinofils", 
+"Basofils", "Albumina", "Adiponectin", "Leptin", "Irisin", "Gal3","FGF19", "FGF21")
+```
+# Pacientes no.EHNA
+```{r}
+Data <- subset(EOM_120522, EOM_120522$NAS_qual == 0)
+Data2 <- Data(c("Age", "BMI", "Heart_rate", "TAS", "TAD", "Pcadera", 
+"Pcintura", "Steatosis_grade", "SAT_area", "VAT_area", "Glucose", 
+"Insulin", "HOMAIR", "TG", "CHOL", "HDL", "LDL", "VLDL", "ALT", "AST", 
+"GGT", "LDH", "FA", "Albumina", "Adiponectin", "Leptin", "Irisin", 
+"Gal3", "FGF19", "FGF21"))
+corMAT <- cor(Data2, use = 'pairwise.complete.obs', method =
+"pearson")
+
+colors:
+Groups <- c(rep("Antropometrics", 7),
+rep("Histology", 3),
+rep("Biochemical", 14),
+rep("Organokines", 6))
+
+(alpha) < 0.1
+corMAT <- make.positive.definite(corMAT)
+qgraph(corMAT, graph = "cor", layout = "spring", threshold = "BH",sampleSize = nrow(Data2), alpha = 0.1, groups = Groups, 
+theme = "Borkulo", palette = 'pastel', minimum = "sig")
+```
+# EHNA incierto
+```{r}
+Data <- subset(EOM_120522, EOM_120522$NAS_qual == 1)
+Data2 <- Data(c("Age", "BMI", "Heart_rate", "TAS", "TAD", "Pcadera", 
+"Pcintura", "Steatosis_grade", "SAT_area", "VAT_area", "Glucose", 
+"Insulin", "HOMAIR", "TG", "CHOL", "HDL", "LDL", "VLDL", "ALT", "AST", 
+"GGT", "LDH", "FA", "Albumina", "Adiponectin", "Leptin", "Irisin", 
+"Gal3", "FGF19", "FGF21"))
+corMAT <- cor(Data2, use = 'pairwise.complete.obs', method =
+"pearson")
+
+colors:
+Groups <- c(rep("Antropometrics", 7),
+rep("Histology", 3),
+rep("Biochemical", 14),
+rep("Organokines", 6))
+
+(alpha) < 0.1
+corMAT <- make.positive.definite(corMAT)
+qgraph(corMAT, graph = "cor", layout = "spring", threshold = "BH",
+sampleSize = nrow(Data2), alpha = 0.1, groups = Groups, 
+theme = "Borkulo", palette = 'pastel', minimum = "sig")
+```
+# EHNA
+```{r}
+Data <- subset(EOM_120522, EOM_120522$NAS_qual == 2) 
+Data2 <- Data[c("Age", "BMI", "Heart_rate", "TAS", "TAD", "Pcadera", "Pcintura", "Steatosis_grade", "SAT_area", "VAT_area", "Glucose", "Insulin", "HOMAIR", "TG", "CHOL", "HDL", "LDL", "VLDL", "ALT", "AST", "GGT", "LDH", "FA", "Albumina", "Adiponectin", "Leptin", "Irisin", "Gal3", "FGF19", "FGF21")] 
+corMAT <- cor(Data2, use = 'pairwise.complete.obs', method = "pearson") 
+#Variable classification in order to visualize them in different colors: 
+Groups <- c(rep("Antropometrics", 7), 
+            rep("Histology", 3), 
+            rep("Biochemical", 14), 
+            rep("Organokines", 6)) 
+#We optimize the model deleting nonsignificative correlations: FDR (alpha) < 0.1 
+corMAT <- make.positive.definite(corMAT) 
+qgraph(corMAT, graph = "cor", layout = "spring", threshold = "BH", 
+       sampleSize = nrow(Data2), alpha = 0.1, groups = Groups,  
+       theme = "Borkulo", palette = 'pastel', minimum = "sig")
+```
+## Regresión
+# Regresión logistica
+Hicimos una regresión logística para ver si podemos separar el grupo Control de los EOM sólo con las organocinas.
+```{r}
+library(readxl)
+library(mice)
+EOM_I_CONTROLS_2 <- read_excel("C:/Users/irene/Desktop/TFG/Coses TFG/EOM 
+I CONTROLS 2.xlsx")
+EOM_I_CONTROLS_3<-mice(EOM_I_CONTROLS_2)
+EOM_I_CONTROL_4<-complete(EOM_I_CONTROLS_3)
+write.csv(EOM_I_CONTROL_4, "ROC.csv", row.names=FALSE)
+library(dplyr)
+numr<- c("Adiponectin", "Leptin", "Irisin", "Gal3", "FGF19","FGF21")
+EOM_I_CONTROL_4 <- EOM_I_CONTROL_4%>% mutate_at ( (numr), ~ ( scale (.)%>
+% as.vector ))
+regresio<-glm(EOM_CONTROL~Adiponectin+Leptin+Irisin+Gal3+FGF19+FGF21, data= EOM_I_CONTROL_4, family=binomial)
+summary(regresio)
+library(questionr)
+odds.ratio(regresio)
+```
+# Visualización de los odds ratio
+```{r}
+library(sjPlot)
+library(sjlabelled)
+library(sjmisc)
+plot_model(regresio, show.values = TRUE, value.offset = .2, title = "Odd
+s ratio for control vs EOM")
+```
+0 es control 1 es EOM FGF21: subir un punto del des vest (porque hemos estandarizado) implica multiplicar por 1,81 la probabilidad de ser EOM.
+# Radar Chart
+Descargamos la biblioteca apropiada y realizamos la mediana de cada organokina. Creamos una tabla donde teníamos la mediana de cada or ganocina i en cada estado de la enfermedad ( 0, 1, 2 ) y la relación máxima y mínima para cada una que queríamos representar. Hicimos el gráfico de radar de NAS
+H, no NASH y NASH incierto.library(readxl)
+```{r}
+RADARCHART <- read_excel("C:/Users/irene/Desktop/TFG/Coses TFG/RADARCHART
+.xlsx")
+library(fmsb)
+radarchart(RADARCHART,
+ cglty = 1, # line type of the grid
+ cglcol = "gray", # Color grid
+ pcol = 2:4, # color for each line
+ plwd = 2, # width for
+```
